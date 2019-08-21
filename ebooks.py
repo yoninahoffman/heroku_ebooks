@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
+
 import random
 import re
 import sys
@@ -54,7 +57,7 @@ def filter_status(text):
     text = re.sub(r'\b(RT|MT) .+', '', text)  # take out anything after RT or MT
     text = re.sub(r'(\#|@|(h\/t)|(http))\S+', '', text)  # Take out URLs, hashtags, hts, etc.
     text = re.sub('\s+', ' ', text)  # collaspse consecutive whitespace to single spaces.
-    text = re.sub(r'\"|\(|\)', '', text)  # take out quotes.
+    text = re.sub(r'\"|\(|\)|\”', '', text)  # take out quotes.
     text = re.sub(r'\s+\(?(via|says)\s@\w+\)?', '', text)  # remove attribution
     text = re.sub(r'<[^>]*>','', text) #strip out html tags from mastodon posts
     htmlsents = re.findall(r'&\w+;', text)
@@ -62,6 +65,12 @@ def filter_status(text):
         text = text.replace(item, entity(item))
     text = re.sub(r'\xe9', 'e', text)  # take out accented e
     return text
+
+def append_philosopher_and_wrap_in_quotes(text: str) -> str:
+    """ Wrap in quotes, add some line breaks, an em dash and philosopher attribution """
+
+    philosopher_index = random.randint(0, len(PHILOSOPHERS) - 1)
+    return f'"{text}"\n\n—{PHILOSOPHERS[philosopher_index]}'
 
 
 def scrape_page(src_url, web_context, web_attributes):
@@ -202,11 +211,13 @@ if __name__ == "__main__":
         for x in range(0, 10):
             ebook_status = mine.generate_sentence()
 
+        # While this is cute, it's probably not what we want for this bot.
+
         # randomly drop the last word, as Horse_ebooks appears to do.
-        if random.randint(0, 4) == 0 and re.search(r'(in|to|from|for|with|by|our|of|your|around|under|beyond)\s\w+$', ebook_status) is not None:
-            print("Losing last word randomly")
-            ebook_status = re.sub(r'\s\w+.$', '', ebook_status)
-            print(ebook_status)
+        # if random.randint(0, 4) == 0 and re.search(r'(in|to|from|for|with|by|our|of|your|around|under|beyond)\s\w+$', ebook_status) is not None:
+        #     print("Losing last word randomly")
+        #     ebook_status = re.sub(r'\s\w+.$', '', ebook_status)
+        #     print(ebook_status)
 
         # if a tweet is very short, this will randomly add a second sentence to it.
         if ebook_status is not None and len(ebook_status) < 40:
@@ -224,13 +235,17 @@ if __name__ == "__main__":
                 ebook_status = ebook_status.upper()
 
         # throw out tweets that match anything from the source account.
-        if ebook_status is not None and len(ebook_status) < 210:
+        if ebook_status is not None and len(ebook_status) < 200: # adjusted length to allow for attribution
             for status in source_statuses:
                 if ebook_status[:-1] not in status:
                     continue
                 else:
                     print("TOO SIMILAR: " + ebook_status)
                     sys.exit()
+
+            # this is the last part of having a status written before we post, so we'll wrap the status here
+
+            ebook_status = append_philosopher_and_wrap_in_quotes(ebook_status)
 
             if not DEBUG:
                 if ENABLE_TWITTER_POSTING:
